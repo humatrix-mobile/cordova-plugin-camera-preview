@@ -7,6 +7,7 @@ import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.Bitmap.CompressFormat;
+import android.hardware.SensorManager;
 import android.media.AudioManager;
 import android.util.Base64;
 import android.graphics.BitmapFactory;
@@ -24,20 +25,25 @@ import android.os.Bundle;
 import android.util.Log;
 import android.util.DisplayMetrics;
 import android.util.Size;
+import android.view.Display;
 import android.view.GestureDetector;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
+import android.view.OrientationEventListener;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
+import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.RelativeLayout;
-import android.support.media.ExifInterface;
+
+import androidx.annotation.Nullable;
+import androidx.exifinterface.media.ExifInterface;
 
 import org.apache.cordova.LOG;
 
@@ -71,6 +77,7 @@ public class CameraActivity extends Fragment {
     void onStopRecordVideoError(String error);
   }
 
+  private OrientationEventListener orientationListener;
   private CameraPreviewListener eventListener;
   private static final String TAG = "CameraActivity";
   public FrameLayout mainLayout;
@@ -85,6 +92,7 @@ public class CameraActivity extends Fragment {
   private int numberOfCameras;
   private int cameraCurrentlyLocked;
   private int currentQuality;
+  private int rotate = 0;
 
   // The first rear facing camera
   private int defaultCameraId;
@@ -121,6 +129,7 @@ public class CameraActivity extends Fragment {
     // Inflate the layout for this fragment
     view = inflater.inflate(getResources().getIdentifier("camera_activity", "layout", appResourcesPackage), container, false);
     createCameraPreview();
+    createOrientationListener();
     return view;
   }
 
@@ -153,6 +162,33 @@ public class CameraActivity extends Fragment {
         }
 
     }
+  }
+
+  private void createOrientationListener() {
+    final int THRESHOLD = 40;
+    final int PORTRAIT = 0;
+    final int LANDSCAPE = 270;
+    final int REVERSE_PORTRAIT = 180;
+    final int REVERSE_LANDSCAPE = 90;
+
+
+    Activity context =  getActivity();
+    orientationListener = new OrientationEventListener(context , SensorManager.SENSOR_DELAY_UI) {
+      public void onOrientationChanged(int orientation) {
+        if(orientation >= 360 + PORTRAIT - THRESHOLD && orientation < 360 ||
+          orientation >= 0 && orientation <= PORTRAIT + THRESHOLD)
+          rotate = 0;
+        else if(orientation >= LANDSCAPE - THRESHOLD && orientation <= LANDSCAPE + THRESHOLD)
+          rotate = 270;
+        else if(orientation >= REVERSE_PORTRAIT - THRESHOLD && orientation <= REVERSE_PORTRAIT + THRESHOLD)
+          rotate = 180;
+        else if(orientation >= REVERSE_LANDSCAPE - THRESHOLD && orientation <= REVERSE_LANDSCAPE + THRESHOLD)
+          rotate = 90;
+
+        Log.d(TAG, "orientation = " + String.valueOf(rotate));
+      }
+    };
+    orientationListener.enable();
   }
 
   private void setupTouchAndBackButton(){
@@ -323,6 +359,10 @@ public class CameraActivity extends Fragment {
         }
       });
     }
+
+    if (orientationListener != null){
+      orientationListener.enable();
+    }
   }
 
   @Override
@@ -336,6 +376,10 @@ public class CameraActivity extends Fragment {
       mCamera.setPreviewCallback(null);
       mCamera.release();
       mCamera = null;
+    }
+
+    if (orientationListener != null){
+      orientationListener.disable();
     }
 
     Activity activity = getActivity();
@@ -632,7 +676,7 @@ public class CameraActivity extends Fragment {
           yuvImage.compressToJpeg(rect, quality, byteArrayOutputStream);
           byte[] data = byteArrayOutputStream.toByteArray();
           byteArrayOutputStream.close();
-          eventListener.onSnapshotTaken(Base64.encodeToString(data, Base64.NO_WRAP));
+          eventListener.onSnapshotTaken(Base64.encodeToString(rotate(data), Base64.NO_WRAP));
         } catch (IOException e) {
           Log.d(TAG, "CameraPreview IOException");
           eventListener.onSnapshotTakenError("IO Error");
@@ -642,6 +686,23 @@ public class CameraActivity extends Fragment {
         }
       }
     });
+  }
+
+  private byte[] rotate(byte[] data){
+    Bitmap bitmap = BitmapFactory.decodeByteArray(data, 0, data.length);
+    Matrix matrix = new Matrix();
+
+    if (mPreview.getCameraFacing() == Camera.CameraInfo.CAMERA_FACING_FRONT) {
+      matrix.postScale(-1, 1, bitmap.getWidth() / 2f, bitmap.getHeight() / 2f);
+    }
+
+    matrix.postRotate(rotate);
+
+    Bitmap bitmapRotated = Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), matrix, true);
+
+    ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+    bitmapRotated.compress(Bitmap.CompressFormat.PNG, 100, byteArrayOutputStream);
+    return byteArrayOutputStream.toByteArray();
   }
 
   public void takePicture(final int width, final int height, final int quality){

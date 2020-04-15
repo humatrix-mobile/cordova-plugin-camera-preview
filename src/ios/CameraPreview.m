@@ -79,25 +79,31 @@
     pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Invalid number of parameters"];
     [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
   }
+    
+  [[NSNotificationCenter defaultCenter]
+     addObserver:self selector:@selector(orientationChanged:)
+     name:UIDeviceOrientationDidChangeNotification
+     object:[UIDevice currentDevice]];
 }
 
 - (void) stopCamera:(CDVInvokedUrlCommand*)command {
     NSLog(@"stopCamera");
     CDVPluginResult *pluginResult;
-
+    
     if(self.sessionManager != nil) {
         [self.cameraRenderController.view removeFromSuperview];
         [self.cameraRenderController removeFromParentViewController];
-
+        
         self.cameraRenderController = nil;
         self.sessionManager = nil;
-
+        
         pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
     }
     else {
         pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Camera not started"];
     }
-
+    
+    [[NSNotificationCenter defaultCenter] removeObserver: self];
     [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
 }
 
@@ -462,7 +468,20 @@
         CGFloat quality = (CGFloat)[command.arguments[0] floatValue] / 100.0f;
         dispatch_async(self.sessionManager.sessionQueue, ^{
             UIImage *image = ((GLKView*)self.cameraRenderController.view).snapshot;
-            NSString *base64Image = [self getBase64Image:image.CGImage withQuality:quality];
+            
+            CGSize size = image.size;
+            CGFloat width = self.orientation == UIImageOrientationUp ? size.height : size.width;
+            CGFloat height = self.orientation == UIImageOrientationUp ? size.width : size.height;
+            UIGraphicsBeginImageContext(CGSizeMake(height,width));
+            [[UIImage imageWithCGImage:[image CGImage]
+                                 scale:1.0
+                           orientation:self.orientation]
+             drawInRect:CGRectMake(0,0,height,width)];
+
+            UIImage* imageRotated = UIGraphicsGetImageFromCurrentImageContext();
+            UIGraphicsEndImageContext();
+             
+            NSString *base64Image = [self getBase64Image:imageRotated.CGImage withQuality:quality];
             NSMutableArray *params = [[NSMutableArray alloc] init];
             [params addObject:base64Image];
             CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsArray:params];
@@ -475,6 +494,36 @@
     }
 }
 
+
+
+- (void) orientationChanged:(NSNotification*)note{
+    UIDevice * device = note.object;
+      switch(device.orientation)
+      {
+          case UIDeviceOrientationPortrait:
+              NSLog(@"UIDeviceOrientationPortrait");
+              self.orientation = UIImageOrientationUp;
+              break;
+
+          case UIDeviceOrientationPortraitUpsideDown:
+              NSLog(@"UIDeviceOrientationPortraitUpsideDown");
+              self.orientation = UIImageOrientationUp;
+          break;
+              
+          case UIDeviceOrientationLandscapeLeft:
+              NSLog(@"UIDeviceOrientationLandscapeLeft");
+              self.orientation = UIImageOrientationLeft;
+          break;
+              
+          case UIDeviceOrientationLandscapeRight:
+              NSLog(@"UIDeviceOrientationLandscapeRight");
+              self.orientation = UIImageOrientationRight;
+          break;
+
+          default:
+          break;
+      };
+}
 
 -(void) setColorEffect:(CDVInvokedUrlCommand*)command {
   NSLog(@"setColorEffect");
@@ -743,7 +792,7 @@
           NSData *data = UIImageJPEGRepresentation([UIImage imageWithCGImage:resultFinalImage], (CGFloat) quality);
           NSString* filePath = [self getTempFilePath:@"jpg"];
           NSError *err;
-
+         
           if (![data writeToFile:filePath options:NSAtomicWrite error:&err]) {
             pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_IO_EXCEPTION messageAsString:[err localizedDescription]];
           }
@@ -782,7 +831,7 @@
     do {
         filePath = [NSString stringWithFormat:@"%@/%@%04d.%@", tmpPath, TMP_IMAGE_PREFIX, i++, extension];
     } while ([fileMgr fileExistsAtPath:filePath]);
-
+    
     return filePath;
 }
 

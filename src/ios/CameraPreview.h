@@ -28,6 +28,7 @@
 - (void) setPreviewSize: (CDVInvokedUrlCommand*)command;
 - (void) switchCamera:(CDVInvokedUrlCommand*)command;
 - (void) takePicture:(CDVInvokedUrlCommand*)command;
+- (void) orientationChanged:(NSNotification*)note;
 - (void) takeSnapshot:(CDVInvokedUrlCommand*)command;
 - (void) setColorEffect:(CDVInvokedUrlCommand*)command;
 - (void) getSupportedPictureSizes:(CDVInvokedUrlCommand*)command;
@@ -47,5 +48,7 @@
 @property (nonatomic) CameraRenderController *cameraRenderController;
 @property (nonatomic) NSString *onPictureTakenHandlerId;
 @property (nonatomic) BOOL storeToFile;
+@property (nonatomic) UIImageOrientation orientation;
 
 @end
+
