@@ -191,6 +191,32 @@ public class CameraActivity extends Fragment {
     orientationListener.enable();
   }
 
+  private int getRotate(int cameraInfo){
+
+    int result = 0;
+    if(rotate == 0) {
+        result = 90;
+    }
+    else if(rotate == 270){
+      if (cameraInfo == Camera.CameraInfo.CAMERA_FACING_FRONT) {
+        result = 180;
+      }else {
+        result = 0;
+      }
+    }
+    else if(rotate == 180) {
+      result = 270;
+    }
+    else if(rotate == 90) {
+      if (cameraInfo == Camera.CameraInfo.CAMERA_FACING_FRONT) {
+        result = 0;
+      }else {
+        result = 180;
+      }
+    }
+    return result;
+  }
+
   private void setupTouchAndBackButton(){
     final GestureDetector gestureDetector = new GestureDetector(getActivity().getApplicationContext(), new TapGestureDetector());
 
@@ -730,7 +756,7 @@ public class CameraActivity extends Fragment {
             params.setJpegQuality(quality);
           }
 
-          params.setRotation(mPreview.getDisplayOrientation());
+          params.setRotation(getRotate(cameraCurrentlyLocked));
 
           mCamera.setParameters(params);
           mCamera.takePicture(shutterCallback, null, jpegPictureCallback);
