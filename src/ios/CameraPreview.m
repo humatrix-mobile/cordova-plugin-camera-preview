@@ -498,8 +498,6 @@
     }
 }
 
-
-
 - (void) orientationChanged:(NSNotification*)note{
     UIDevice * device = note.object;
       switch(device.orientation)
@@ -511,7 +509,7 @@
 
           case UIDeviceOrientationPortraitUpsideDown:
               NSLog(@"UIDeviceOrientationPortraitUpsideDown");
-              self.orientation = UIImageOrientationUp;
+              self.orientation = UIImageOrientationDown;
           break;
 
           case UIDeviceOrientationLandscapeLeft:
@@ -681,6 +679,26 @@
   return radians;
 }
 
+- (double)radiansFromDeviceOrientation {
+  double radians;
+
+  switch (self.orientation) {
+    case UIImageOrientationUp:
+      radians = M_PI_2;
+      break;
+    case UIImageOrientationLeft:
+      radians = 0.f;
+      break;
+    case UIImageOrientationRight:
+      radians = M_PI;
+      break;
+    case UIImageOrientationDown:
+      radians = -M_PI_2;
+      break;
+  }
+  return radians;
+}
+
 -(CGImageRef) CGImageRotated:(CGImageRef) originalCGImage withRadians:(double) radians {
   CGSize imageSize = CGSizeMake(CGImageGetWidth(originalCGImage), CGImageGetHeight(originalCGImage));
   CGSize rotatedSize;
@@ -746,18 +764,34 @@
         UIImage *capturedImage  = [[UIImage alloc] initWithData:imageData];
 
         CIImage *capturedCImage;
+
         //image resize
-
         if(width > 0 && height > 0){
-          CGFloat scaleHeight = width/capturedImage.size.height;
-          CGFloat scaleWidth = height/capturedImage.size.width;
-          CGFloat scale = scaleHeight > scaleWidth ? scaleWidth : scaleHeight;
+            CGFloat widthImage = capturedImage.size.width;
+            CGFloat heightImage = capturedImage.size.height;
 
-          CIFilter *resizeFilter = [CIFilter filterWithName:@"CILanczosScaleTransform"];
-          [resizeFilter setValue:[[CIImage alloc] initWithCGImage:[capturedImage CGImage]] forKey:kCIInputImageKey];
-          [resizeFilter setValue:[NSNumber numberWithFloat:1.0f] forKey:@"inputAspectRatio"];
-          [resizeFilter setValue:[NSNumber numberWithFloat:scale] forKey:@"inputScale"];
-          capturedCImage = [resizeFilter outputImage];
+            CGFloat widthRatio;
+            CGFloat heightRatio;
+            CGFloat x;
+            CGFloat y;
+
+            if((widthImage / width) * height > heightImage){
+                widthRatio = (heightImage / height) * width;
+                heightRatio = heightImage;
+                x = 0;
+                y =  (widthImage / 2) - (widthRatio / 2);
+            }
+            else{
+                widthRatio = widthImage;
+                heightRatio = (widthImage / width) * height;
+                x = (heightImage / 2) - (heightRatio / 2);
+                y = 0;
+            }
+
+            CGImageRef imageRef = CGImageCreateWithImageInRect(capturedImage.CGImage, CGRectMake(x, y, heightRatio, widthRatio));
+            UIImage *croppedImage = [UIImage imageWithCGImage:imageRef];
+            CGImageRelease(imageRef);
+            capturedCImage = [[CIImage alloc] initWithCGImage:[croppedImage CGImage]];
         }else{
           capturedCImage = [[CIImage alloc] initWithCGImage:[capturedImage CGImage]];
         }
@@ -786,7 +820,7 @@
         CGImageRef finalImage = [self.cameraRenderController.ciContext createCGImage:finalCImage fromRect:finalCImage.extent];
         UIImage *resultImage = [UIImage imageWithCGImage:finalImage];
 
-        double radians = [self radiansFromUIImageOrientation:resultImage.imageOrientation];
+        double radians = [self radiansFromDeviceOrientation];
         CGImageRef resultFinalImage = [self CGImageRotated:finalImage withRadians:radians];
 
         CGImageRelease(finalImage); // release CGImageRef to remove memory leaks
