@@ -109,59 +109,8 @@ CameraPreview.takePicture = function(opts, onSuccess, onError) {
     return false;
   }
 
-  var cal = function(width, height) {
-      var gcd, temp, divisor;
-
-      gcd = function (a, b) {
-          if (b === 0) return a;
-          return gcd(b, a % b);
-      }
-
-      // take care of the simple case
-      if (width === height){
-          var result = {
-              ratio: '1:1',
-              widthRatio: 1,
-              heightRetio: 1,
-              widthResolution: width,
-              heightResolution: height
-          }
-          return result;
-      }
-
-      // make sure width is always the larger number
-      if (+width < +height) {
-          temp   = width;
-          width  = height;
-          height = temp;
-      }
-
-      divisor = gcd(+width, +height);
-
-      var widthRatio = 'undefined' === typeof temp ? (width / divisor) : (height / divisor);
-
-      var heightRetio = 'undefined' === typeof temp ? (height / divisor) : (width / divisor);
-
-      var result = {
-          ratio: widthRatio + ':' + heightRetio,
-          widthRatio: widthRatio,
-          heightRetio: heightRetio,
-          widthResolution: width,
-          heightResolution: height,
-          resolution:width *height,
-      }
-
-      return result;
-  }
-
-  if(opts.width && opts.height) {
-    var tempCal = cal(opts.width,opts.height);
-    opts.width = tempCal.widthRatio;
-    opts.height = tempCal.heightRetio;
-  }else{
-    opts.width = opts.width || 0;
-    opts.height = opts.height || 0;
-  }
+  opts.width = opts.width || 0;
+  opts.height = opts.height || 0;
 
   if (!opts.quality || opts.quality > 100 || opts.quality < 0) {
     opts.quality = 85;
