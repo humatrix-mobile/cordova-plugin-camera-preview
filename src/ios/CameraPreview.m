@@ -80,10 +80,10 @@
     [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
   }
 
-  [[NSNotificationCenter defaultCenter]
-     addObserver:self selector:@selector(orientationChanged:)
-     name:UIDeviceOrientationDidChangeNotification
-     object:[UIDevice currentDevice]];
+  [[NSNotificationCenter defaultCenter] addObserver:self
+                                           selector:@selector(orientationChanged:)
+                                               name:UIDeviceOrientationDidChangeNotification
+                                             object:nil];
 }
 
 - (void) stopCamera:(CDVInvokedUrlCommand*)command {
@@ -103,7 +103,10 @@
         pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Camera not started"];
     }
 
-    [[NSNotificationCenter defaultCenter] removeObserver: self];
+    [[NSNotificationCenter defaultCenter] removeObserver:self
+                                                    name:UIDeviceOrientationDidChangeNotification
+                                                  object:nil];
+
     [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
 }
 
@@ -499,7 +502,8 @@
 }
 
 - (void) orientationChanged:(NSNotification*)note{
-    UIDevice * device = note.object;
+
+      UIDevice * device = [UIDevice currentDevice];
       switch(device.orientation)
       {
           case UIDeviceOrientationPortrait:
@@ -681,18 +685,19 @@
 
 - (double)radiansFromDeviceOrientation {
   double radians;
+  UIDevice * device = [UIDevice currentDevice];
 
-  switch (self.orientation) {
-    case UIImageOrientationUp:
+  switch (device.orientation) {
+    case UIDeviceOrientationPortrait:
       radians = M_PI_2;
       break;
-    case UIImageOrientationLeft:
+    case UIDeviceOrientationLandscapeLeft:
       radians = 0.f;
       break;
-    case UIImageOrientationRight:
+    case UIDeviceOrientationLandscapeRight:
       radians = M_PI;
       break;
-    case UIImageOrientationDown:
+    case UIDeviceOrientationPortraitUpsideDown:
       radians = -M_PI_2;
       break;
   }
