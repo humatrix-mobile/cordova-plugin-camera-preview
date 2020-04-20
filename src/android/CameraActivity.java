@@ -105,6 +105,8 @@ public class CameraActivity extends Fragment {
   public boolean storeToFile;
   public boolean toBack;
 
+  public int widthCamera;
+  public int heightCamera;
   public int width;
   public int height;
   public int x;
@@ -486,6 +488,59 @@ public class CameraActivity extends Fragment {
     return Bitmap.createBitmap(source, 0, 0, source.getWidth(), source.getHeight(), matrix, true);
   }
 
+  private Bitmap cropBitmap(Bitmap source,int width ,int height){
+    double widthCamera = width;
+    double heightCamera = height;
+    double widthImage = source.getWidth();
+    double heightImage = source.getHeight();
+
+    int widthRatio;
+    int heightRatio;
+    int x;
+    int y;
+
+    if(widthCamera > 0 && widthCamera > 0){
+
+      if(widthImage > heightImage) {
+        //landscape
+        widthCamera = height;
+        heightCamera = width;
+
+        if(((heightImage / heightCamera) * widthCamera) > widthImage){
+          widthRatio = (int) Math.round(widthImage);
+          heightRatio = (int) Math.round((widthImage / widthCamera) * heightCamera) ;
+          x = 0;
+          y = (int) Math.round((heightImage / 2) - (heightRatio / 2));
+        }else {
+          widthRatio = (int) Math.round((heightImage / heightCamera) * widthCamera);
+          heightRatio = (int) Math.round(heightImage);
+          x = (int) Math.round((widthImage / 2) - (widthRatio / 2));
+          y = 0;
+        }
+
+      }else {
+        //portrait
+        if(((widthImage / widthCamera) * heightCamera) > heightImage) {
+          widthRatio = (int) Math.round((heightImage / heightCamera) * widthCamera);
+          heightRatio = (int) Math.round(heightImage);
+          x = (int) Math.round((widthImage / 2) - (widthRatio / 2));
+          y = 0;
+        } else {
+          widthRatio = (int) Math.round(widthImage);
+          heightRatio = (int) Math.round((widthImage / widthCamera) * heightCamera) ;
+          x = 0;
+          y = (int) Math.round((heightImage / 2) - (heightRatio / 2));
+        }
+      }
+
+      return Bitmap.createBitmap(source, x, y, widthRatio, heightRatio);
+    }
+    else {
+      return source;
+    }
+
+  }
+
   ShutterCallback shutterCallback = new ShutterCallback(){
     public void onShutter(){
       // do nothing, availabilty of this callback causes default system shutter sound to work
@@ -537,6 +592,15 @@ public class CameraActivity extends Fragment {
           if (!matrix.isIdentity()) {
             Bitmap bitmap = BitmapFactory.decodeByteArray(data, 0, data.length);
             bitmap = applyMatrix(bitmap, matrix);
+            bitmap = cropBitmap(bitmap,widthCamera,heightCamera);
+
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            bitmap.compress(Bitmap.CompressFormat.JPEG, currentQuality, outputStream);
+            data = outputStream.toByteArray();
+          }
+          else {
+            Bitmap bitmap = BitmapFactory.decodeByteArray(data, 0, data.length);
+            bitmap = cropBitmap(bitmap,widthCamera,heightCamera);
 
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
             bitmap.compress(Bitmap.CompressFormat.JPEG, currentQuality, outputStream);
@@ -734,6 +798,9 @@ public class CameraActivity extends Fragment {
   public void takePicture(final int width, final int height, final int quality){
     Log.d(TAG, "CameraPreview takePicture width: " + width + ", height: " + height + ", quality: " + quality);
 
+    widthCamera = width;
+    heightCamera = height;
+
     if(mPreview != null) {
       if(!canTakePicture){
         return;
@@ -745,7 +812,7 @@ public class CameraActivity extends Fragment {
         public void run() {
           Camera.Parameters params = mCamera.getParameters();
 
-          Camera.Size size = getOptimalPictureSize(width, height, params.getPreviewSize(), params.getSupportedPictureSizes());
+          Camera.Size size = params.getSupportedPictureSizes().get(0);
           params.setPictureSize(size.width, size.height);
           currentQuality = quality;
 
