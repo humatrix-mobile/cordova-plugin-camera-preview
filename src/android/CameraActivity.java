@@ -107,6 +107,7 @@ public class CameraActivity extends Fragment {
 
   public int widthCamera;
   public int heightCamera;
+  public boolean isCrop = false;
   public int width;
   public int height;
   public int x;
@@ -592,19 +593,20 @@ public class CameraActivity extends Fragment {
           if (!matrix.isIdentity()) {
             Bitmap bitmap = BitmapFactory.decodeByteArray(data, 0, data.length);
             bitmap = applyMatrix(bitmap, matrix);
-            bitmap = cropBitmap(bitmap,widthCamera,heightCamera);
+
+            if (isCrop) bitmap = cropBitmap(bitmap,widthCamera,heightCamera);
 
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
             bitmap.compress(Bitmap.CompressFormat.JPEG, currentQuality, outputStream);
             data = outputStream.toByteArray();
-          }
-          else {
-            Bitmap bitmap = BitmapFactory.decodeByteArray(data, 0, data.length);
-            bitmap = cropBitmap(bitmap,widthCamera,heightCamera);
-
-            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-            bitmap.compress(Bitmap.CompressFormat.JPEG, currentQuality, outputStream);
-            data = outputStream.toByteArray();
+          }else {
+            if (isCrop){
+              Bitmap bitmap = BitmapFactory.decodeByteArray(data, 0, data.length);
+              cropBitmap(bitmap,widthCamera,heightCamera);
+              ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+              bitmap.compress(Bitmap.CompressFormat.JPEG, currentQuality, outputStream);
+              data = outputStream.toByteArray();
+            }
           }
         }
 
@@ -655,10 +657,12 @@ public class CameraActivity extends Fragment {
       double heightRatio = height;
 
       if ((widthCamera / widthRatio) * heightRatio == heightCamera){
+        isCrop = false;
         return size;
       }
     }
 
+    isCrop = true;
     return supportedSizes.get(0);
   }
 
