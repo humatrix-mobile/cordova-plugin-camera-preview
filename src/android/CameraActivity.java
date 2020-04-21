@@ -637,6 +637,31 @@ public class CameraActivity extends Fragment {
     }
   };
 
+  private Camera.Size getOptimalPictureSize2(int width,int height, final List<Camera.Size> supportedSizes){
+
+    // convert to landscape if necessary
+    if (width < height) {
+      int temp = width;
+      width = height;
+      height = temp;
+    }
+
+    for (int i = 0; i < supportedSizes.size(); i++) {
+      Camera.Size size = supportedSizes.get(i);
+
+      double widthCamera = size.width;
+      double heightCamera = size.height;
+      double widthRatio = width;
+      double heightRatio = height;
+
+      if ((widthCamera / widthRatio) * heightRatio == heightCamera){
+        return size;
+      }
+    }
+
+    return supportedSizes.get(0);
+  }
+
   private Camera.Size getOptimalPictureSize(final int width, final int height, final Camera.Size previewSize, final List<Camera.Size> supportedSizes){
     /*
       get the supportedPictureSize that:
@@ -812,7 +837,7 @@ public class CameraActivity extends Fragment {
         public void run() {
           Camera.Parameters params = mCamera.getParameters();
 
-          Camera.Size size = params.getSupportedPictureSizes().get(0);
+          Camera.Size size = getOptimalPictureSize2(width,height,params.getSupportedPictureSizes());
           params.setPictureSize(size.width, size.height);
           currentQuality = quality;
 
