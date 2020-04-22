@@ -120,7 +120,7 @@ public class CameraPreview extends CordovaPlugin implements CameraActivity.Camer
         return true;
       }
     } else if (TAKE_PICTURE_ACTION.equals(action)) {
-      return takePicture(args.getInt(0), args.getInt(1), args.getInt(2), callbackContext);
+      return takePicture(args.getInt(0), args.getInt(1), args.getInt(2),args.getInt(3), callbackContext);
     } else if (TAKE_SNAPSHOT_ACTION.equals(action)) {
       return takeSnapshot(args.getInt(0), callbackContext);
     }else if (START_RECORD_VIDEO_ACTION.equals(action)) {
@@ -399,14 +399,14 @@ public class CameraPreview extends CordovaPlugin implements CameraActivity.Camer
     takeSnapshotCallbackContext = null;
   }
 
-  private boolean takePicture(int width, int height, int quality, CallbackContext callbackContext) {
+  private boolean takePicture(int width, int height, int resize, int quality, CallbackContext callbackContext) {
     if(this.hasView(callbackContext) == false){
       return true;
     }
     takePictureCallbackContext = callbackContext;
 
-    fragment.takePicture(width, height, quality);
-
+    fragment.takePicture(width, height, resize , quality);
+    
     return true;
   }
 

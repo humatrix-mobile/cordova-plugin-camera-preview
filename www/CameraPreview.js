@@ -111,12 +111,13 @@ CameraPreview.takePicture = function(opts, onSuccess, onError) {
 
   opts.width = opts.width || 0;
   opts.height = opts.height || 0;
+  opts.resize = opts.resize || 1;
 
   if (!opts.quality || opts.quality > 100 || opts.quality < 0) {
     opts.quality = 85;
   }
 
-  exec(onSuccess, onError, PLUGIN_NAME, "takePicture", [opts.width, opts.height, opts.quality]);
+  exec(onSuccess, onError, PLUGIN_NAME, "takePicture", [opts.width, opts.height, opts.resize , opts.quality]);
 };
 
 CameraPreview.setColorEffect = function(effect, onSuccess, onError) {

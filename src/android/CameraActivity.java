@@ -107,6 +107,7 @@ public class CameraActivity extends Fragment {
 
   public int widthCamera;
   public int heightCamera;
+  public int resize;
   public boolean isCrop = false;
   public int width;
   public int height;
@@ -245,7 +246,7 @@ public class CameraActivity extends Fragment {
                 setFocusArea((int) event.getX(0), (int) event.getY(0), new Camera.AutoFocusCallback() {
                   public void onAutoFocus(boolean success, Camera camera) {
                     if (success) {
-                      takePicture(0, 0, 85);
+                      takePicture(0, 0,1, 85);
                     } else {
                       Log.d(TAG, "onTouch:" + " setFocusArea() did not suceed");
                     }
@@ -253,7 +254,7 @@ public class CameraActivity extends Fragment {
                 });
 
               } else if (tapToTakePicture) {
-                takePicture(0, 0, 85);
+                takePicture(0, 0,1, 85);
 
               } else if (tapToFocus) {
                 setFocusArea((int) event.getX(0), (int) event.getY(0), new Camera.AutoFocusCallback() {
@@ -589,9 +590,12 @@ public class CameraActivity extends Fragment {
             matrix.preRotate(rotationInDegrees);
           }
 
+          BitmapFactory.Options options = new BitmapFactory.Options();
+          options.inSampleSize = resize;
+
           // Check if matrix has changed. In that case, apply matrix and override data
           if (!matrix.isIdentity()) {
-            Bitmap bitmap = BitmapFactory.decodeByteArray(data, 0, data.length);
+            Bitmap bitmap = BitmapFactory.decodeByteArray(data, 0, data.length,options);
             bitmap = applyMatrix(bitmap, matrix);
 
             if (isCrop) bitmap = cropBitmap(bitmap,widthCamera,heightCamera);
@@ -601,7 +605,7 @@ public class CameraActivity extends Fragment {
             data = outputStream.toByteArray();
           }else {
             if (isCrop){
-              Bitmap bitmap = BitmapFactory.decodeByteArray(data, 0, data.length);
+              Bitmap bitmap = BitmapFactory.decodeByteArray(data, 0, data.length,options);
               cropBitmap(bitmap,widthCamera,heightCamera);
               ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
               bitmap.compress(Bitmap.CompressFormat.JPEG, currentQuality, outputStream);
@@ -824,11 +828,12 @@ public class CameraActivity extends Fragment {
     return byteArrayOutputStream.toByteArray();
   }
 
-  public void takePicture(final int width, final int height, final int quality){
+  public void takePicture(final int width, final int height,final int resize, final int quality){
     Log.d(TAG, "CameraPreview takePicture width: " + width + ", height: " + height + ", quality: " + quality);
 
-    widthCamera = width;
-    heightCamera = height;
+    this.widthCamera = width;
+    this.heightCamera = height;
+    this.resize = resize;
 
     if(mPreview != null) {
       if(!canTakePicture){
