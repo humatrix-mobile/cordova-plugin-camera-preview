@@ -3,6 +3,7 @@
 #import <Cordova/CDVInvokedUrlCommand.h>
 #import <GLKit/GLKit.h>
 #import "CameraPreview.h"
+#import <CoreMotion/CoreMotion.h>
 
 #define TMP_IMAGE_PREFIX @"cpcp_capture_"
 
@@ -17,6 +18,7 @@
 - (void) startCamera:(CDVInvokedUrlCommand*)command {
 
   CDVPluginResult *pluginResult;
+  [self startAccelerometer];
 
   if (self.sessionManager != nil) {
     pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Camera already started!"];
@@ -81,15 +83,12 @@
     [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
   }
 
-  [[NSNotificationCenter defaultCenter] addObserver:self
-                                           selector:@selector(orientationChanged:)
-                                               name:UIDeviceOrientationDidChangeNotification
-                                             object:nil];
 }
 
 - (void) stopCamera:(CDVInvokedUrlCommand*)command {
     NSLog(@"stopCamera");
     CDVPluginResult *pluginResult;
+    [self stopAccelerometer];
 
     if(self.sessionManager != nil) {
         [self.cameraRenderController.view removeFromSuperview];
@@ -103,10 +102,6 @@
     else {
         pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Camera not started"];
     }
-
-    [[NSNotificationCenter defaultCenter] removeObserver:self
-                                                    name:UIDeviceOrientationDidChangeNotification
-                                                  object:nil];
 
     [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
 }
@@ -478,12 +473,12 @@
 
         dispatch_async(dispatch_get_global_queue( DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^{
             CGSize size = screenShot.size;
-            CGFloat width = self.orientation == UIImageOrientationUp ? size.height : size.width;
-            CGFloat height = self.orientation == UIImageOrientationUp ? size.width : size.height;
+            CGFloat width = self.uiImageOrientation == UIImageOrientationUp ? size.height : size.width;
+            CGFloat height = self.uiImageOrientation == UIImageOrientationUp ? size.width : size.height;
             UIGraphicsBeginImageContext(CGSizeMake(height,width));
             [[UIImage imageWithCGImage:[screenShot CGImage]
                                  scale:1.0
-                           orientation:self.orientation]
+                           orientation:self.uiImageOrientation]
              drawInRect:CGRectMake(0,0,height,width)];
 
             UIImage* imageRotated = UIGraphicsGetImageFromCurrentImageContext();
@@ -500,36 +495,6 @@
         pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Camera not started"];
         [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
     }
-}
-
-- (void) orientationChanged:(NSNotification*)note{
-
-      UIDevice * device = [UIDevice currentDevice];
-      switch(device.orientation)
-      {
-          case UIDeviceOrientationPortrait:
-              NSLog(@"UIDeviceOrientationPortrait");
-              self.orientation = UIImageOrientationUp;
-              break;
-
-          case UIDeviceOrientationPortraitUpsideDown:
-              NSLog(@"UIDeviceOrientationPortraitUpsideDown");
-              self.orientation = UIImageOrientationDown;
-          break;
-
-          case UIDeviceOrientationLandscapeLeft:
-              NSLog(@"UIDeviceOrientationLandscapeLeft");
-              self.orientation = UIImageOrientationLeft;
-          break;
-
-          case UIDeviceOrientationLandscapeRight:
-              NSLog(@"UIDeviceOrientationLandscapeRight");
-              self.orientation = UIImageOrientationRight;
-          break;
-
-          default:
-          break;
-      };
 }
 
 -(void) setColorEffect:(CDVInvokedUrlCommand*)command {
@@ -686,9 +651,13 @@
 
 - (double)radiansFromDeviceOrientation {
   double radians;
-  UIDevice * device = [UIDevice currentDevice];
+    UIDeviceOrientation orientationDefault = [UIDevice currentDevice].orientation;
 
-  switch (device.orientation) {
+    if(self.uiDeviceOrientation != nil){
+        orientationDefault = self.uiDeviceOrientation;
+    }
+
+  switch (orientationDefault) {
     case UIDeviceOrientationPortrait:
       radians = M_PI_2;
       break;
@@ -877,6 +846,75 @@
     } while ([fileMgr fileExistsAtPath:filePath]);
 
     return filePath;
+}
+
+- (void)startAccelerometer
+{
+    self.uiImageOrientation = UIImageOrientationUp;
+
+    if (!self.motionManager)
+    {
+        self.motionManager = [[CMMotionManager alloc] init];
+    }
+
+    if ([self.motionManager isAccelerometerAvailable] == YES) {
+        [self.motionManager setAccelerometerUpdateInterval:1.0 / 10.0];
+        [self.motionManager startAccelerometerUpdatesToQueue:[NSOperationQueue mainQueue] withHandler:^(CMAccelerometerData *accelerometerData, NSError *error) {
+            float const threshold = 50.0;
+
+            BOOL (^isNearValue) (float value1, float value2) = ^BOOL(float value1, float value2)
+            {
+                return fabsf(value1 - value2) < threshold;
+            };
+
+            BOOL (^isNearValueABS) (float value1, float value2) = ^BOOL(float value1, float value2)
+            {
+                return isNearValue(fabsf(value1), fabsf(value2));
+            };
+
+            float yxAtan = (atan2(accelerometerData.acceleration.y, accelerometerData.acceleration.x)) * 180 / M_PI;
+            float zyAtan = (atan2(accelerometerData.acceleration.z, accelerometerData.acceleration.y)) * 180 / M_PI;
+            float zxAtan = (atan2(accelerometerData.acceleration.z, accelerometerData.acceleration.x)) * 180 / M_PI;
+
+            if (isNearValue(-90.0, yxAtan) && isNearValueABS(180.0, zyAtan))
+            {
+                self.uiDeviceOrientation = UIDeviceOrientationPortrait;
+                self.uiImageOrientation = UIImageOrientationUp;
+                NSLog(@"UIDeviceOrientationPortrait");
+            }
+            else if (isNearValueABS(180.0, yxAtan) && isNearValueABS(180.0, zxAtan))
+            {
+                self.uiDeviceOrientation = UIDeviceOrientationLandscapeLeft;
+                self.uiImageOrientation = UIImageOrientationLeft;
+                NSLog(@"UIDeviceOrientationLandscapeLeft");
+            }
+            else if (isNearValueABS(0.0, yxAtan) && isNearValueABS(0.0, zxAtan))
+            {
+                self.uiDeviceOrientation = UIDeviceOrientationLandscapeRight;
+                self.uiImageOrientation = UIImageOrientationRight;
+                NSLog(@"UIDeviceOrientationLandscapeRight");
+            }
+            else if (isNearValue(90.0, yxAtan) && isNearValueABS(0.0, zyAtan))
+            {
+                self.uiDeviceOrientation = UIDeviceOrientationPortraitUpsideDown;
+                self.uiImageOrientation = UIImageOrientationDown;
+                NSLog(@"UIDeviceOrientationPortraitUpsideDown");
+            }
+
+        }];
+
+        if (!self.isRunning) {
+            self.isRunning = YES;
+        }
+    }
+}
+
+- (void)stopAccelerometer
+{
+    if ([self.motionManager isAccelerometerAvailable] == YES) {
+        [self.motionManager stopAccelerometerUpdates];
+    }
+    self.isRunning = NO;
 }
 
 @end

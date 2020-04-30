@@ -1,6 +1,7 @@
 #import <Cordova/CDV.h>
 #import <Cordova/CDVPlugin.h>
 #import <Cordova/CDVInvokedUrlCommand.h>
+#import <CoreMotion/CoreMotion.h>
 
 #import "CameraSessionManager.h"
 #import "CameraRenderController.h"
@@ -28,7 +29,6 @@
 - (void) setPreviewSize: (CDVInvokedUrlCommand*)command;
 - (void) switchCamera:(CDVInvokedUrlCommand*)command;
 - (void) takePicture:(CDVInvokedUrlCommand*)command;
-- (void) orientationChanged:(NSNotification*)note;
 - (void) takeSnapshot:(CDVInvokedUrlCommand*)command;
 - (void) setColorEffect:(CDVInvokedUrlCommand*)command;
 - (void) getSupportedPictureSizes:(CDVInvokedUrlCommand*)command;
@@ -48,7 +48,13 @@
 @property (nonatomic) CameraRenderController *cameraRenderController;
 @property (nonatomic) NSString *onPictureTakenHandlerId;
 @property (nonatomic) BOOL storeToFile;
-@property (nonatomic) UIImageOrientation orientation;
+
+@property (nonatomic) UIImageOrientation uiImageOrientation;
+@property (nonatomic) UIDeviceOrientation uiDeviceOrientation;
+- (void)startAccelerometer;
+- (void)stopAccelerometer;
+@property (readwrite, assign) BOOL isRunning;
+@property (readwrite, strong) CMMotionManager* motionManager;
 
 @end
 
