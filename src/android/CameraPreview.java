@@ -989,7 +989,13 @@ public class CameraPreview extends CordovaPlugin implements CameraActivity.Camer
     return true;
   }
 
-  private boolean stopCamera(CallbackContext callbackContext) {
+   private boolean stopCamera(CallbackContext callbackContext) {
+
+    try{
+      ((ViewGroup)webView.getView().getParent().getParent()).setBackgroundColor(0xFFFFFFFF);
+    }
+    catch (Exception e){ }
+     
     if(webViewParent != null) {
       cordova.getActivity().runOnUiThread(new Runnable() {
         @Override
